@@ -17,6 +17,12 @@ static int device_release(struct inode *, struct file *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
 static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 
+#define PROCFS_MAX_SIZE 2048 
+#define BUFFER_SIZE 256
+static char device_buffer[PROCFS_MAX_SIZE]; //The buffer (2k) for this module
+static int buffer_position;
+
+
 #define SUCCESS 0
 #define DEVICE_NAME "UNGS"
 #define BUF_LEN 80
@@ -25,6 +31,7 @@ static int Major;
 static int Device_Open = 0;
 static char msg[BUF_LEN];
 static int msg_length = 0;
+static char *msg_Ptr;
 
 static struct file_operations fops = {
     .read = device_read,
@@ -32,6 +39,8 @@ static struct file_operations fops = {
     .open = device_open,
     .release = device_release
 };
+
+
 
 /*
  * This function is called when the module is loaded
@@ -106,36 +115,56 @@ static int device_release(struct inode *inode, struct file *file){
  * Called when a process, which already opened the dev file, attempts to read
  * from it.
  */
-static ssize_t device_read(struct file *file, // see include/linux/fs.h   
-                           char *buffer,      //buffer to fill with data 
-                           size_t length,     //length of the buffer 
-                           loff_t *offset)
-{
-    int bytes_read = 0; //cantidad de bytes escritos en el buffer
-    if (*msg_Ptr == 0){ //si se esta en el final del mensaje retorna 0 significando el final del archivo
-        return 0;
-    }                                           //Debido a que el búfer está en el segmento de datos del usuario,
-    while (length && *msg_Ptr){                 //no el segmento de datos del kernel, la asignación no funcionaria
-        put_user(*(msg_Ptr++), buffer++);       //Escribe un valor simple en el espacio del usuario.
-        length--;
-        bytes_read++;
-    }
+static ssize_t device_read(struct file *filp,  char *buffer, size_t length, loff_t *offset){
+    // see include/linux/fs.h //length of the buffer //buffer to fill with data
+    
+    static int finished = 0;
 
-    return bytes_read; //Se supone que las funciones de lectura devuelven el número de bytes realmente insertados en el búfer
+    if(finished){
+      printk(KERN_INFO "procfs_read: END\n");
+      finished = 0;
+      return 0;
+    }
+    finished = 1;
+    
+   // Elimina cualquier caracter de nueva linea al final de la cadena
+    device_buffer[strcspn(device_buffer, "\n")] = '\0';
+ 
+    char temp[procfs_buffer_size + 1];
+    int i;
+ 
+    for(i = 0; i < procfs_buffer_size; i++){
+      temp[i] = device_buffer[procfs_buffer_size - i - 1];
+    }
+ 
+    temp[procfs_buffer_size] = '\n';
+    /* 
+    * We use put_to_user to copy the string from the kernel's
+    * memory segment to the memory segment of the process
+    * that called us. get_from_user, BTW, is
+    * used for the reverse. 
+    */
+    if(copy_to_user(buffer, temp, procfs_buffer_size + 1)){
+      return -EFAULT;
+    }
+    printk(KERN_INFO "procfs_read: read %lu bytes\n", procfs_buffer_size);
+    return procfs_buffer_size + 1; /* Return the number of bytes "read" */
+    
 }
 
 /*
  * Called when a process writes to dev file: echo "hi" > /dev/UNGS
  */
-static ssize_t device_write(struct file *file, const char *tmp, size_t length, loff_t *offset){
-    printk(KERN_INFO "Message writen to device: ");
-	
-    int i;
-    for(i=0; i < length && i < BUF_LEN; i++){
-        get_user(message[i], buffer + i) //copia una sola variable simple del espacio del usuario al espacio del kernel
+static ssize_t device_write(struct file *filp, const char *tmp, size_t length, loff_t *offset){
+    if(len > PROCFS_MAX_SIZE){
+        procfs_buffer_size = PROCFS_MAX_SIZE;
     }
-
-    msg_Ptr = Message;
-
-    return length; //devolver la cantidad de caracteres de entrada utilizados
+    else{
+        procfs_buffer_size = len;
+    }
+    if(copy_from_user(device_buffer, buff, procfs_buffer_size) ){
+      return -EFAULT;
+    }
+    printk(KERN_INFO "procfs_write: write %lu bytes\n", procfs_buffer_size);
+    return procfs_buffer_size;
 }
