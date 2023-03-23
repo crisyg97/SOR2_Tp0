@@ -31,7 +31,6 @@ static char msg[BUF_LEN];
 static int msg_length = 0;
 
 static struct file_operations fops = {
-	.owner = THIS_MODULE,
     .read = device_read,
     .write = device_write,
     .open = device_open,
@@ -68,7 +67,10 @@ void cleanup_module(void){
     /*
      * Unregister the device
      */
-    unregister_chrdev(Major, DEVICE_NAME);
+    int return = unregister_chrdev(Major, DEVICE_NAME);
+    if(return < 0){
+        printk(KERN_ALERT "Error in unregister_chrdev: %d\n", ret);
+    }
 }
 
 /*
@@ -79,16 +81,28 @@ void cleanup_module(void){
  * Called when a process tries to open the device file, like
  * "cat /dev/chardev
  */
-static int device_open(struct inode *inode, struct file *filp){
+static int device_open(struct inode *inode, struct file *file){
+    static int counter = 0;
+
     if (Device_Open)
         return -EBUSY;
+
+    Device_Open++;
+    sprintf(msg, "I already told you %d times Hello world!\n", counter++);
+    msg_Ptr = msg;
+    try_module_get(THIS_MODULE);
+
     return SUCCESS;
 }
 
 /*
  * Called when a process closes the device file.
  */
-static int device_release(struct inode *inode, struct file *filp){
+static int device_release(struct inode *inode, struct file *file){
+    Device_Open--;
+
+    module_put(THIS_MODULE);
+
     return SUCCESS;
 }
 
@@ -96,9 +110,9 @@ static int device_release(struct inode *inode, struct file *filp){
  * Called when a process, which already opened the dev file, attempts to read
  * from it.
  */
-static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
-                           char *buffer,      /* buffer to fill with data */
-                           size_t length,     /* length of the buffer     */
+static ssize_t device_read(struct file *file, // see include/linux/fs.h   
+                           char *buffer,      //buffer to fill with data 
+                           size_t length,     //length of the buffer 
                            loff_t *offset)
 {
     /*
@@ -111,7 +125,7 @@ static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
 /*
  * Called when a process writes to dev file: echo "hi" > /dev/UNGS
  */
-static ssize_t device_write(struct file *filp, const char *tmp, size_t length, loff_t *offset) {
+static ssize_t device_write(struct file *file, const char *tmp, size_t length, loff_t *offset) {
     printk(KERN_INFO "Message writen to device: ");
 	/* Que debemos hacer ? */
     return length;
