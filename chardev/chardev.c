@@ -21,10 +21,6 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 #define DEVICE_NAME "UNGS"
 #define BUF_LEN 80
 
-/*
- * Global variables are declared as static, so are global within the file.
- */
-
 static int Major;
 static int Device_Open = 0;
 static char msg[BUF_LEN];
@@ -43,7 +39,7 @@ static struct file_operations fops = {
 int init_module(void){
     Major = register_chrdev(0, DEVICE_NAME, &fops);
 
-    if (Major < 0) {
+    if(Major < 0){
         printk(KERN_ALERT "Registrando char device con %d\n", Major);
         return Major;
     }
@@ -84,9 +80,9 @@ void cleanup_module(void){
 static int device_open(struct inode *inode, struct file *file){
     static int counter = 0;
 
-    if (Device_Open)
+    if(Device_Open){
         return -EBUSY;
-
+    }
     Device_Open++;
     sprintf(msg, "I already told you %d times Hello world!\n", counter++);
     msg_Ptr = msg;
@@ -115,18 +111,31 @@ static ssize_t device_read(struct file *file, // see include/linux/fs.h
                            size_t length,     //length of the buffer 
                            loff_t *offset)
 {
-    /*
-     * Qué debemos hacer ??? 
-     */
+    int bytes_read = 0; //cantidad de bytes escritos en el buffer
+    if (*msg_Ptr == 0){ //si se esta en el final del mensaje retorna 0 significando el final del archivo
+        return 0;
+    }                                           //Debido a que el búfer está en el segmento de datos del usuario,
+    while (length && *msg_Ptr){                 //no el segmento de datos del kernel, la asignación no funcionaria
+        put_user(*(msg_Ptr++), buffer++);       //Escribe un valor simple en el espacio del usuario.
+        length--;
+        bytes_read++;
+    }
 
-    return bytes_read;
+    return bytes_read; //Se supone que las funciones de lectura devuelven el número de bytes realmente insertados en el búfer
 }
 
 /*
  * Called when a process writes to dev file: echo "hi" > /dev/UNGS
  */
-static ssize_t device_write(struct file *file, const char *tmp, size_t length, loff_t *offset) {
+static ssize_t device_write(struct file *file, const char *tmp, size_t length, loff_t *offset){
     printk(KERN_INFO "Message writen to device: ");
-	/* Que debemos hacer ? */
-    return length;
+	
+    int i;
+    for(i=0; i < length && i < BUF_LEN; i++){
+        get_user(message[i], buffer + i) //copia una sola variable simple del espacio del usuario al espacio del kernel
+    }
+
+    msg_Ptr = Message;
+
+    return length; //devolver la cantidad de caracteres de entrada utilizados
 }
