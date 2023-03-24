@@ -63,8 +63,8 @@ void cleanup_module(void){
     /*
      * Unregister the device
      */
-    int return = unregister_chrdev(Major, DEVICE_NAME);
-    if(return < 0){
+    int ret = unregister_chrdev(Major, DEVICE_NAME);
+    if(ret < 0){
         printk(KERN_ALERT "Error in unregister_chrdev: %d\n", ret);
     }
 }
