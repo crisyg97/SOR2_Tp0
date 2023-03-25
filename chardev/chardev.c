@@ -15,7 +15,7 @@ void cleanup_module(void);
 static int device_open(struct inode *, struct file *);
 static int device_release(struct inode *, struct file *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
-static ssize_t device_write(struct file *filp, const char *tmp, size_t len, const char *buff, loff_t *offset);
+static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 
 #define PROCFS_MAX_SIZE 2048 
 #define BUFFER_SIZE 256
