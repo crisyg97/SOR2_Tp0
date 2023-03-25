@@ -21,6 +21,7 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 #define BUFFER_SIZE 256
 static char device_buffer[PROCFS_MAX_SIZE]; //The buffer (2k) for this module
 static int buffer_position;
+static unsigned long procfs_buffer_size = 0;
 
 
 #define SUCCESS 0
@@ -39,7 +40,6 @@ static struct file_operations fops = {
     .open = device_open,
     .release = device_release
 };
-
 
 
 /*
@@ -72,10 +72,8 @@ void cleanup_module(void){
     /*
      * Unregister the device
      */
-    int ret = unregister_chrdev(Major, DEVICE_NAME);
-    if(ret < 0){
-        printk(KERN_ALERT "Error in unregister_chrdev: %d\n", ret);
-    }
+    unregister_chrdev(Major, DEVICE_NAME);
+    printk(KERN_INFO "UNGS : Driver desregistrado\n");
 }
 
 /*
