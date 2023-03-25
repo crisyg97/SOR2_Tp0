@@ -153,8 +153,8 @@ static ssize_t device_read(struct file *filp,  char *buffer, size_t length, loff
 /*
  * Called when a process writes to dev file: echo "hi" > /dev/UNGS
  */
-static ssize_t device_write(struct file *filp, const char *tmp, size_t len, const char *buff, loff_t *offset){
-    if(len > PROCFS_MAX_SIZE){
+static ssize_t device_write(struct file *filp, size_t len, const char *buff, loff_t *offset){
+    if(len > PROCFS_MAX_SIZE){ 
         procfs_buffer_size = PROCFS_MAX_SIZE;
     }
     else{
