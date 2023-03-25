@@ -20,7 +20,7 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 #define PROCFS_MAX_SIZE 2048 
 #define BUFFER_SIZE 256
 static char device_buffer[PROCFS_MAX_SIZE]; //The buffer (2k) for this module
-static int buffer_position;
+//static int buffer_position;
 static unsigned long procfs_buffer_size = 0;
 
 
@@ -31,7 +31,7 @@ static unsigned long procfs_buffer_size = 0;
 static int Major;
 static int Device_Open = 0;
 static char msg[BUF_LEN];
-static int msg_length = 0;
+//static int msg_length = 0;
 static char *msg_Ptr;
 
 static struct file_operations fops = {
@@ -153,7 +153,7 @@ static ssize_t device_read(struct file *filp,  char *buffer, size_t length, loff
 /*
  * Called when a process writes to dev file: echo "hi" > /dev/UNGS
  */
-static ssize_t device_write(struct file *filp, const char *tmp, size_t length, loff_t *offset){
+static ssize_t device_write(struct file *filp, const char *tmp, size_t len, const char *buff, loff_t *offset){
     if(len > PROCFS_MAX_SIZE){
         procfs_buffer_size = PROCFS_MAX_SIZE;
     }
